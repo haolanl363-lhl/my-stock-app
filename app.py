@@ -3,116 +3,119 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.express as px
-import plotly.graph_objects as go
 import requests
 
 # -------------------------------------------------------------
-# 1. 页面基础配置
+# 1. 页面基础配置 (纯黑主题)
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="ALPHA QUANT | 智能量化监控终端",
+    page_title="ALPHA QUANT | 纯黑极客量化终端",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # -------------------------------------------------------------
-# 2. 自定义高级 UI 样式 (CSS)
+# 2. 纯黑极客 UI 样式注入 (CSS)
 # -------------------------------------------------------------
-CUSTOM_CSS = """
+BLACK_TERMINAL_CSS = """
 <style>
-    /* 引入高端无衬线字体 */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* 强制全屏纯黑背景 */
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background-color: #0b0f17 !important;
+        color: #e2e8f0 !important;
+        font-family: 'Inter', sans-serif;
     }
     
-    /* 页面全局背景渐变 */
-    .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-        color: #f8fafc;
+    /* 隐藏 Streamlit 默认顶部灰条 */
+    header[data-testid="stHeader"] {
+        background-color: rgba(11, 15, 23, 0.8) !important;
     }
     
-    /* 主标题样式 */
-    .main-header {
-        background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+    /* 极客终端主标题 */
+    .terminal-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 24px;
+        font-weight: 800;
+        text-align: center;
+        background: linear-gradient(90deg, #00f2fe, #4facfe, #00f2fe);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 22px !important;
-        font-weight: 800 !important;
-        text-align: center;
-        letter-spacing: 1px;
-        margin-bottom: 2px;
+        letter-spacing: 1.5px;
+        margin-bottom: 4px;
     }
     
-    .sub-title {
+    .terminal-sub {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
         text-align: center;
-        color: #94a3b8;
-        font-size: 12px;
-        margin-bottom: 20px;
+        color: #64748b;
+        margin-bottom: 24px;
     }
     
-    /* 高级卡片封装 (Card Container) */
-    .glass-card {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 16px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
-        transition: transform 0.2s ease, border-color 0.2s ease;
+    /* 纯黑发光卡片 */
+    .dark-card {
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        transition: all 0.25s ease-in-out;
     }
-    .glass-card:hover {
-        border-color: rgba(99, 102, 241, 0.4);
+    .dark-card:hover {
+        border-color: #38bdf8;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
         transform: translateY(-2px);
     }
     
-    /* 自定义 Metric 样式 */
-    .metric-label {
-        font-size: 12px;
+    .card-label {
+        font-size: 11px;
         color: #94a3b8;
-        font-weight: 500;
-        margin-bottom: 4px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        font-family: 'JetBrains Mono', monospace;
     }
-    .metric-value {
-        font-size: 20px;
+    .card-val {
+        font-size: 19px;
         font-weight: 700;
-        color: #f8fafc;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', monospace;
     }
-    .metric-delta-up {
-        font-size: 13px;
-        color: #f43f5e;
-        font-weight: 600;
+    .card-up {
+        font-size: 12px;
+        color: #ff2a6d;
+        font-weight: 700;
     }
-    .metric-delta-down {
-        font-size: 13px;
-        color: #10b981;
-        font-weight: 600;
+    .card-down {
+        font-size: 12px;
+        color: #05ffa1;
+        font-weight: 700;
     }
     
-    /* 分隔线装饰 */
-    hr {
-        border: none;
+    /* 霓虹发光分割线 */
+    .neon-hr {
         height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-        margin: 25px 0;
+        border: none;
+        background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+        margin: 30px 0;
+        opacity: 0.3;
     }
 </style>
 """
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+st.markdown(BLACK_TERMINAL_CSS, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # 3. 顶部 Header
 # -------------------------------------------------------------
-st.markdown("<div class='main-header'>⚡ ALPHA QUANT 智能多维量化终端</div>", unsafe_allow_html=True)
-st.caption("<div class='sub-title'>实时行情引擎驱动 | 资金面 (40%) + 情绪面 (30%) + 技术面 (30%) 三维评分体系</div>", unsafe_allow_html=True)
+st.markdown("<div class='terminal-title'>⚡ ALPHA QUANT TERMINAL v2.0</div>", unsafe_allow_html=True)
+st.markdown("<div class='terminal-sub'>REALTIME DATA ENGINE | 资金面 (40%) + 情绪面 (30%) + 技术面 (30%)</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 4. 模块一：全球核心指数
+# 4. 模块一：全球大盘行情 (暗黑卡片)
 # -------------------------------------------------------------
-st.markdown("##### 📊 全球核心指数行情")
+st.markdown("##### 🌐 全球核心指数监测")
 
 @st.cache_data(ttl=60)
 def get_index_data():
@@ -144,25 +147,25 @@ if not idx_df.empty:
     cols = st.columns(len(idx_df))
     for idx, row in idx_df.iterrows():
         with cols[idx]:
-            pct = row['漲跌幅' if '漲跌幅' in row else '涨跌幅']
-            delta_class = "metric-delta-up" if pct >= 0 else "metric-delta-down"
-            delta_symbol = "+" if pct >= 0 else ""
+            pct = row['涨跌幅']
+            css_cls = "card-up" if pct >= 0 else "card-down"
+            sym = "+" if pct >= 0 else ""
             
             card_html = f"""
-            <div class="glass-card">
-                <div class="metric-label">{row['名称']}</div>
-                <div class="metric-value">{row['最新价']}</div>
-                <div class="{delta_class}">{delta_symbol}{pct:.2f}%</div>
+            <div class="dark-card">
+                <div class="card-label">{row['名称']}</div>
+                <div class="card-val">{row['最新价']}</div>
+                <div class="{css_cls}">{sym}{pct:.2f}%</div>
             </div>
             """
             st.markdown(card_html, unsafe_allow_html=True)
 
-st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<div class='neon-hr'></div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # 5. 模块二：三维量化实时推荐 Top 15
 # -------------------------------------------------------------
-st.markdown("##### 🏆 今日 A 股量化综合推荐榜 Top 15")
+st.markdown("##### 🏆 今日 A 股量化综合推荐 Top 15")
 
 WATCH_POOL = [
     "sh600519", "sz300750", "sz002594", "sh601318", "sz000858", 
@@ -222,27 +225,28 @@ rk_df = get_realtime_quant()
 if not rk_df.empty:
     top1 = rk_df.iloc[0]
     
-    # 冠军标的卡片
+    # 霓虹首选标的 Banner
     hero_card_html = f"""
-    <div class="glass-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.15) 100%); border: 1px solid rgba(168, 85, 247, 0.3); margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div style="background: #0f172a; border: 1px solid #38bdf8; border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
             <div>
-                <span style="background: #a855f7; color: white; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; margin-right: 8px;">TOP 1 量化首选</span>
-                <span style="font-size: 18px; font-weight: bold; color: white;">{top1['名称']}</span>
-                <span style="color: #94a3b8; font-size: 12px; margin-left: 5px;">({top1['代码']})</span>
+                <span style="background: #0284c7; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; font-family: monospace;">TOP 1 QUANT CHOICE</span>
+                <div style="font-size: 22px; font-weight: 800; color: #ffffff; margin-top: 6px;">
+                    {top1['名称']} <span style="color: #64748b; font-size: 14px; font-weight: normal;">({top1['代码']})</span>
+                </div>
             </div>
-            <div style="display: flex; gap: 20px;">
+            <div style="display: flex; gap: 28px; font-family: 'JetBrains Mono', monospace;">
                 <div>
-                    <div style="font-size: 10px; color: #94a3b8;">最新价</div>
-                    <div style="font-size: 16px; font-weight: bold; color: white;">￥{top1['最新价']:.2f}</div>
+                    <div style="font-size: 11px; color: #64748b;">最新价</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #f8fafc;">￥{top1['最新价']:.2f}</div>
                 </div>
                 <div>
-                    <div style="font-size: 10px; color: #94a3b8;">今日涨跌</div>
-                    <div style="font-size: 16px; font-weight: bold; color: {'#f43f5e' if top1['涨跌幅']>=0 else '#10b981'};">{top1['涨跌幅']:+.2f}%</div>
+                    <div style="font-size: 11px; color: #64748b;">今日涨跌</div>
+                    <div style="font-size: 18px; font-weight: 700; color: {'#ff2a6d' if top1['涨跌幅']>=0 else '#05ffa1'};">{top1['涨跌幅']:+.2f}%</div>
                 </div>
                 <div>
-                    <div style="font-size: 10px; color: #a855f7; font-weight: bold;">综合量化得分</div>
-                    <div style="font-size: 20px; font-weight: 800; color: #38bdf8;">{top1['综合评价总分']} <span style="font-size: 11px;">分</span></div>
+                    <div style="font-size: 11px; color: #38bdf8;">综合量化总分</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #38bdf8;">{top1['综合评价总分']} <span style="font-size: 12px;">PTS</span></div>
                 </div>
             </div>
         </div>
@@ -250,7 +254,7 @@ if not rk_df.empty:
     """
     st.markdown(hero_card_html, unsafe_allow_html=True)
 
-    # 散点图可视化 (极客暗黑风)
+    # 纯黑极客风散点图
     fig_q = px.scatter(
         rk_df, 
         x="资金面得分", 
@@ -259,32 +263,32 @@ if not rk_df.empty:
         color="涨跌幅", 
         hover_name="名称", 
         text="名称", 
-        color_continuous_scale=["#10b981", "#38bdf8", "#f43f5e"],
-        title="Top 15 标的“资金 vs 技术”两维度强弱分布图"
+        color_continuous_scale=["#05ffa1", "#00f2fe", "#ff2a6d"],
+        title="Top 15 标的“资金 vs 技术”两维度分布图"
     )
     
-    fig_q.update_traces(textposition='top center', marker=dict(opacity=0.85, line=dict(width=1, color='white')))
+    fig_q.update_traces(textposition='top center', marker=dict(opacity=0.9, line=dict(width=1, color='#38bdf8')))
     fig_q.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(15, 23, 42, 0.6)',
-        font=dict(color='#94a3b8'),
+        paper_bgcolor='#0b0f17',
+        plot_bgcolor='#111827',
+        font=dict(color='#94a3b8', family='JetBrains Mono'),
         margin=dict(l=20, r=20, t=40, b=20),
         height=380,
-        xaxis=dict(gridcolor='rgba(255,255,255,0.05)', zerolinecolor='rgba(255,255,255,0.1)'),
-        yaxis=dict(gridcolor='rgba(255,255,255,0.05)', zerolinecolor='rgba(255,255,255,0.1)')
+        xaxis=dict(gridcolor='#1e293b', zerolinecolor='#334155'),
+        yaxis=dict(gridcolor='#1e293b', zerolinecolor='#334155')
     )
     st.plotly_chart(fig_q, use_container_width=True)
 
-    # 精美数据表格
+    # 量化明细数据表
     st.markdown("##### 📋 量化评分明细矩阵")
     st.dataframe(
         rk_df.style.format({
             '最新价': '￥{:.2f}', 
             '涨跌幅': '{:+.2f}%', 
             '换手率': '{:.2f}%'
-        }).background_gradient(cmap="Blues", subset=['综合评价总分']),
+        }),
         use_container_width=True
     )
 
-st.markdown("<hr>", unsafe_allow_html=True)
-st.caption("<div style='text-align: center; color: #64748b; font-size: 11px;'>ALPHA QUANT © 2026 | 开盘期间每60s自动更新 | 数据源：腾讯财经开放数据接口</div>", unsafe_allow_html=True)
+st.markdown("<div class='neon-hr'></div>", unsafe_allow_html=True)
+st.caption("<div style='text-align: center; color: #475569; font-size: 11px; font-family: monospace;'>ALPHA QUANT TERMINAL © 2026 | DARK MODE V2.0 | REALTIME DATA FEED</div>", unsafe_allow_html=True)
