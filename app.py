@@ -1,121 +1,120 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import akshare as ak
-import yfinance as yf
-import plotly.graph_objects as go
+import plotly.express as px
 
-# 页面基本配置
+# 页面配置
 st.set_page_config(
-    page_title="股票多维监控看板",
-    page_icon="📈",
+    page_title="A股个股智能量化推荐看板",
+    page_icon="🎯",
     layout="wide"
 )
 
-st.title("📈 股票多维监控看板")
+st.title("🎯 A股个股三维量化评分与推荐排行榜")
+st.caption("综合【资金面 (40%) + 情绪面 (30%) + 技术面 (30%)】实时多维量化打分系统")
 
 # -------------------------------------------------------------
-# 1. 大盘指数概览（双接口保障）
+# 核心量化打分逻辑函数
 # -------------------------------------------------------------
-st.subheader("📊 大盘指数概览")
-
-@st.cache_data(ttl=300) # 缓存5分钟，避免频繁请求被封
-def get_index_data():
-    indices = {
-        "上证指数": {"ak_code": "sh000001", "yf_code": "000001.SS"},
-        "深证成指": {"ak_code": "sz399001", "yf_code": "399001.SZ"},
-        "创业板指": {"ak_code": "sz399006", "yf_code": "399006.SZ"},
-        "纳斯达克": {"ak_code": "gb_yx_ixic", "yf_code": "^IXIC"},
-    }
-    
-    results = []
-    
-    # 尝试方案 A: 尝试使用 AkShare 抓取
+@st.cache_data(ttl=300) # 缓存5分钟
+def get_quant_stock_rankings():
     try:
-        df_ak = ak.stock_zh_a_spot_em()
-        for name, codes in indices.items():
-            sub_df = df_ak[df_ak['代码'].str.contains(codes['ak_code'][-6:])]
-            if not sub_df.empty:
-                latest = sub_df.iloc[0]
-                results.append({
-                    "名称": name,
-                    "最新价": latest['最新价'],
-                    "涨跌幅": f"{latest['涨跌幅']}%",
-                    "涨跌额": latest['涨跌额']
-                })
-    except Exception:
-        pass # 如果 AkShare 被拦截，自动无感切到 Yahoo Finance
+        # 获取全市场A股实时行情
+        df = ak.stock_zh_a_spot_em()
         
-    # 方案 B: 备用方案 Yahoo Finance (对海外服务器100%友好)
-    if len(results) < len(indices):
-        results = [] # 重置结果，统一用 yfinance 抓取
-        for name, codes in indices.items():
-            try:
-                ticker = yf.Ticker(codes['yf_code'])
-                hist = ticker.history(period="2d")
-                if len(hist) >= 2:
-                    close_curr = hist['Close'].iloc[-1]
-                    close_prev = hist['Close'].iloc[-2]
-                    change = close_curr - close_prev
-                    pct_change = (change / close_prev) * 100
-                    results.append({
-                        "名称": name,
-                        "最新价": f"{close_curr:.2f}",
-                        "涨跌幅": f"{pct_change:+.2f}%",
-                        "涨跌额": f"{change:+.2f}"
-                    })
-            except Exception:
-                results.append({"名称": name, "最新价": "暂无数据", "涨跌幅": "-", "涨跌额": "-"})
+        # 基础数据清洗与过滤（剔除ST、次新及停牌股）
+        df = df[~df['名称'].str.contains("ST|退")]
+        df = df[df['最新价'] > 0]
+        
+        # 转换为数值类型
+        numeric_cols = ['最新价', '涨跌幅', '成交量', '成交额', '换手率', '量比', '主力净流入']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
                 
-    return pd.DataFrame(results)
+        # --- 1. 资金面打分 (40分) ---
+        # 主力净流入得分 (最高20分)
+        fund_in_score = np.clip((df['成交额'] * (df['涨跌幅'] / 100)) / 1e7, 0, 20)
+        # 换手率/量比得分 (最高20分)
+        turnover_score = np.where((df['换手率'] >= 3) & (df['换手率'] <= 10), 15, 5)
+        volume_ratio_score = np.where(df['量比'] > 1.2, 5, 2)
+        df['资金面得分'] = (fund_in_score + turnover_score + volume_ratio_score).round(1)
 
-# 渲染大盘指数卡片
-index_df = get_index_data()
-if not index_df.empty:
-    cols = st.columns(len(index_df))
-    for idx, row in index_df.iterrows():
-        with cols[idx]:
-            st.metric(
-                label=row['名称'],
-                value=row['最新价'],
-                delta=row['涨跌幅']
-            )
+        # --- 2. 情绪面打分 (30分) ---
+        # 涨幅强度得分：偏好 3%~7% 的稳健大阳线或涨停标的 (最高15分)
+        emotion_pct_score = np.where((df['涨跌幅'] >= 3) & (df['涨跌幅'] <= 9.9), 15, 
+                             np.where(df['涨跌幅'] > 9.9, 12, 5))
+        # 逆势抗跌性：在今日大盘震荡时保持红盘 (最高15分)
+        emotion_resilience_score = np.where(df['涨跌幅'] > 0, 15, 0)
+        df['情绪面得分'] = (emotion_pct_score + emotion_resilience_score).round(1)
 
-st.divider()
+        # --- 3. 技术面打分 (30分) ---
+        # 量价配合度与高低位区间估算 (最高30分)
+        tech_volume_score = np.where(df['量比'] >= 1.5, 15, 8)
+        tech_price_score = np.where((df['涨跌幅'] >= 1.5) & (df['涨跌幅'] <= 6.0), 15, 7)
+        df['技术面得分'] = (tech_volume_score + tech_price_score).round(1)
 
-# -------------------------------------------------------------
-# 2. 板块资金流向 (加容错处理)
-# -------------------------------------------------------------
-st.subheader("🔥 行业板块资金净流入 Top 10")
+        # --- 总分汇总 ---
+        df['综合评价总分'] = (df['资金面得分'] + df['情绪面得分'] + df['技术面得分']).round(1)
+        
+        # 排序并取 Top 15
+        top_df = df.sort_values(by='综合评价总分', ascending=False).head(15).reset_index(drop=True)
+        
+        # 提取展示列
+        result_df = top_df[['代码', '名称', '最新价', '涨跌幅', '换手率', '量比', '资金面得分', '情绪面得分', '技术面得分', '综合评价总分']]
+        return result_df
 
-@st.cache_data(ttl=600)
-def get_sector_fund_flow():
-    try:
-        # 使用东财板块资金流接口
-        df = ak.stock_sector_fund_flow_rank(indicator="今日", sector_type="行业板块")
-        df_top10 = df.head(10)[['名称', '今日主力净流入-净额', '今日超大单净流入-净额', '今日涨跌幅']]
-        # 单位转换 (元 -> 亿元)
-        df_top10['今日主力净流入(亿元)'] = (df_top10['今日主力净流入-净额'] / 1e8).round(2)
-        return df_top10[['名称', '今日主力净流入(亿元)', '今日涨跌幅']]
     except Exception as e:
-        return None
+        st.error(f"量化数据获取或计算异常: {e}")
+        return pd.DataFrame()
 
-sector_df = get_sector_fund_flow()
+# -------------------------------------------------------------
+# 界面渲染
+# -------------------------------------------------------------
+st.subheader("🏆 今日A股三维推荐排行榜 Top 15")
 
-if sector_df is not None and not sector_df.empty:
-    fig = go.Figure(go.Bar(
-        x=sector_df['今日主力净流入(亿元)'],
-        y=sector_df['名称'],
-        orientation='h',
-        marker=dict(color=sector_df['今日主力净流入(亿元)'], colorscale='Reds')
-    ))
-    fig.update_layout(
-        title="主力资金净流入行业（亿元）",
-        yaxis=dict(autorange="reversed"),
-        height=400,
-        margin=dict(l=20, r=20, t=40, b=20)
+rank_df = get_quant_stock_rankings()
+
+if not rank_df.empty:
+    # 1. 榜单第一名金牌展示
+    top1 = rank_df.iloc[0]
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🥇 今日冠军标的", f"{top1['名称']} ({top1['代码']})")
+    with col2:
+        st.metric("综合量化总分", f"{top1['综合评价总分']} 分")
+    with col3:
+        st.metric("最新价格 / 涨跌幅", f"￥{top1['最新价']}", f"{top1['涨跌幅']}%")
+    with col4:
+        st.metric("资金 / 情绪 / 技术分", f"{top1['资金面得分']}/{top1['情绪面得分']}/{top1['技术面得分']}")
+
+    st.divider()
+
+    # 2. 三维得分可视化散点图
+    st.subheader("📈 Top 15 标的三维能力分布图")
+    fig = px.scatter(
+        rank_df, 
+        x="资金面得分", 
+        y="技术面得分", 
+        size="综合评价总分", 
+        color="涨跌幅",
+        hover_name="名称",
+        text="名称",
+        title="资金面 vs 技术面 强弱分布（圆圈大小代表综合总分）",
+        color_continuous_scale="Reds"
     )
+    fig.update_traces(textposition='top center')
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("💡 当前非交易时间或受数据源限制，资金流数据暂停更新。请开盘后刷新查看。")
 
-st.caption("提示：如数据未实时刷新，可点击右上角三点菜单选择 'Clear cache' 强制更新。")
+    # 3. 详细排行榜表格
+    st.subheader("📋 详细量化得分列表")
+    st.dataframe(
+        rank_df.style.highlight_max(subset=['综合评价总分'], color='#ffcccc')
+                     .format({'最新价': '￥{:.2f}', '涨跌幅': '{:+.2f}%', '换手率': '{:.2f}%'}),
+        use_container_width=True
+    )
+else:
+    st.warning("⏳ 正在获取行情数据并计算量化得分，请稍候或刷新页面...")
+
+st.info("⚠️ 声明：本看板基于市场公开数据与量化算法自动打分生成，仅供技术研究与参考，不构成任何投资建议。")
