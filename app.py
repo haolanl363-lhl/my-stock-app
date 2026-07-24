@@ -8,7 +8,7 @@ import requests
 import datetime
 
 # -------------------------------------------------------------
-# 1. 页面基础配置 (纯黑极客风格)
+# 1. 页面基础配置 (极简暗黑风)
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="ALPHA QUANT | 智能量化终端",
@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# 2. 纯黑终端 CSS 样式
+# 2. 纯黑 UI 样式
 # -------------------------------------------------------------
 BLACK_TERMINAL_CSS = """
 <style>
@@ -52,9 +52,7 @@ BLACK_TERMINAL_CSS = """
         padding: 12px 14px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     }
-    .dark-card:hover {
-        border-color: #38bdf8;
-    }
+    .dark-card:hover { border-color: #38bdf8; }
     .card-label { font-size: 11px; color: #94a3b8; font-weight: 600; }
     .card-val { font-size: 18px; font-weight: 700; color: #ffffff; font-family: 'JetBrains Mono'; }
     .card-up { font-size: 12px; color: #ff2a6d; font-weight: 700; }
@@ -70,83 +68,108 @@ BLACK_TERMINAL_CSS = """
 st.markdown(BLACK_TERMINAL_CSS, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 3. 侧边栏：1~10秒自动刷新设置与股票搜索控制
+# 3. 精准判断 A 股盘中 / 盘后收盘状态（收盘后至次日 9:15 保持收盘值）
 # -------------------------------------------------------------
-st.sidebar.markdown("### ⚙️ 终端控制面板")
+def is_trading_time():
+    now = datetime.datetime.now().time()
+    # 交易日 9:15 集合竞价开始到 11:30，13:00 到 15:00 收盘
+    t1_start, t1_end = datetime.time(9, 15), datetime.time(11, 30)
+    t2_start, t2_end = datetime.time(13, 0), datetime.time(15, 0)
+    is_weekday = datetime.datetime.now().weekday() < 5
+    
+    if is_weekday and ((t1_start <= now <= t1_end) or (t2_start <= now <= t2_end)):
+        return True
+    return False
 
-# 自动刷新机制
-auto_refresh = st.sidebar.checkbox("开启实时刷新 (1~10秒)", value=False)
-refresh_rate = st.sidebar.slider("刷新频率 (秒)", min_value=1, max_value=10, value=3)
+trading_status = "🟢 盘中实时更新" if is_trading_time() else "🔴 盘后休市 (固定收盘静态数据)"
 
-if auto_refresh:
-    st.sidebar.caption(f"⚡ 已开启自动刷新：每 {refresh_rate} 秒更新")
-    # 动态 Streamlit 刷新逻辑
-    st.empty()
-
-# 常用股票快速预设字典
-STOCK_DICT = {
-    "贵州茅台 (600519)": "sh600519",
-    "宁德时代 (300750)": "sz300750",
-    "比亚迪 (002594)": "sz002594",
-    "中国平安 (601318)": "sh601318",
-    "五粮液 (000858)": "sz000858",
-    "招商银行 (600036)": "sh600036",
-    "东方财富 (300059)": "sz300059",
-    "中信证券 (600030)": "sh600030",
-    "隆基绿能 (601012)": "sh601012",
-    "立讯精密 (002475)": "sz002475"
+# -------------------------------------------------------------
+# 4. 股票中文名称与代码映射
+# -------------------------------------------------------------
+COMMON_STOCKS = {
+    "贵州茅台": "sh600519", "茅台": "sh600519",
+    "宁德时代": "sz300750", "宁德": "sz300750",
+    "比亚迪": "sz002594",
+    "东方财富": "sz300059", "东财": "sz300059",
+    "中国平安": "sh601318", "平安": "sh601318",
+    "五粮液": "sz000858",
+    "招商银行": "sh600036", "招行": "sh600036",
+    "中信证券": "sh600030",
+    "隆基绿能": "sh601012", "隆基": "sh601012",
+    "立讯精密": "sz002475",
+    "科大讯飞": "sz002230",
+    "长江电力": "sh600900",
+    "格力电器": "sz000651",
+    "恒瑞医药": "sh600276",
+    "美的集团": "sz000333",
+    "同花顺": "sz300033"
 }
 
-st.sidebar.markdown("### 🔍 个股行情检索")
-search_input = st.sidebar.text_input("输入股票代码/拼音 (例如: 600519 或 300750)", value="600519")
-
-# 解析股票代码格式
-def parse_stock_code(code_str):
-    clean_code = code_str.strip().lower()
-    for name, code in STOCK_DICT.items():
-        if clean_code in name or clean_code in code:
-            return code
-    if clean_code.startswith("6"):
-        return f"sh{clean_code}"
-    elif clean_code.startswith("0") or clean_code.startswith("3"):
-        return f"sz{clean_code}"
-    return f"sh{clean_code}"
-
-selected_code = parse_stock_code(search_input)
+def resolve_stock_code(query):
+    q = query.strip()
+    if q in COMMON_STOCKS:
+        return COMMON_STOCKS[q], q
+    for name, code in COMMON_STOCKS.items():
+        if q in name:
+            return code, name
+    clean_code = ''.join(filter(str.isdigit, q))
+    if len(clean_code) == 6:
+        if clean_code.startswith("6"):
+            return f"sh{clean_code}", clean_code
+        else:
+            return f"sz{clean_code}", clean_code
+    return "sh600519", "贵州茅台"
 
 # -------------------------------------------------------------
-# 4. 顶部 Header & 全球指数 (包含上证指数)
+# 5. 侧边栏搜索与刷新设置
 # -------------------------------------------------------------
-st.markdown("<div class='terminal-title'>⚡ ALPHA QUANT 极速量化交易终端</div>", unsafe_allow_html=True)
-st.caption("<div style='text-align:center; color:#64748b;'>数据源：腾讯财经 / Yahoo Finance 毫秒级数据流</div>", unsafe_allow_html=True)
+st.sidebar.markdown("### 🔍 个股名称/代码检索")
+user_input = st.sidebar.text_input("输入股票名字/代码", value="贵州茅台")
+target_code, matched_name = resolve_stock_code(user_input)
 
-@st.cache_data(ttl=3)
-def get_index_data():
+st.sidebar.markdown("---")
+st.sidebar.caption(f"当前状态：{trading_status}")
+auto_refresh = st.sidebar.checkbox("开启自动刷新", value=is_trading_time())
+refresh_rate = st.sidebar.slider("刷新间隔 (秒)", min_value=1, max_value=10, value=3)
+
+# -------------------------------------------------------------
+# 6. 顶部 Header & A 股核心大盘指数
+# -------------------------------------------------------------
+st.markdown("<div class='terminal-title'>⚡ ALPHA QUANT 极速量化行情终端</div>", unsafe_allow_html=True)
+
+@st.cache_data(ttl=2 if is_trading_time() else 86400)
+def get_china_indices():
     indices = {
-        "上证指数": "^000001.SS", 
-        "沪深300": "000300.SS", 
-        "创业板指": "399006.SZ", 
-        "纳斯达克": "^IXIC", 
-        "标普500": "^GSPC"
+        "上证指数": "sh000001",
+        "深证成指": "sz399001",
+        "沪深300": "sh000300",
+        "创业板指": "sz399006",
+        "科创50": "sh688981"
     }
+    codes = ",".join(indices.values())
+    url = f"http://qt.gtimg.cn/q={codes}"
     results = []
-    for name, code in indices.items():
-        try:
-            ticker = yf.Ticker(code)
-            hist = ticker.history(period="2d")
-            if len(hist) >= 2:
-                close_curr = hist['Close'].iloc[-1]
-                close_prev = hist['Close'].iloc[-2]
-                change = close_curr - close_prev
-                pct_change = (change / close_prev) * 100
-                results.append({"名称": name, "最新价": f"{close_curr:,.2f}", "涨跌幅": pct_change})
-            else:
-                results.append({"名称": name, "最新价": "--", "涨跌幅": 0.0})
-        except Exception:
-            results.append({"名称": name, "最新价": "--", "涨跌幅": 0.0})
+    try:
+        resp = requests.get(url, timeout=3)
+        lines = resp.text.split(";")
+        for idx_name, code in indices.items():
+            for line in lines:
+                if code in line and '="' in line:
+                    data = line.split('="')[1].replace('";', '').split('~')
+                    if len(data) > 32:
+                        price = float(data[3])
+                        prev_close = float(data[4])
+                        pct_change = float(data[32]) if data[32] != '' else ((price - prev_close)/prev_close*100)
+                        results.append({
+                            "名称": idx_name, 
+                            "最新价": f"{price:,.2f}", 
+                            "涨跌幅": pct_change
+                        })
+    except Exception:
+        pass
     return pd.DataFrame(results)
 
-idx_df = get_index_data()
+idx_df = get_china_indices()
 
 if not idx_df.empty:
     cols = st.columns(len(idx_df))
@@ -155,24 +178,20 @@ if not idx_df.empty:
             pct = row['涨跌幅']
             css_cls = "card-up" if pct >= 0 else "card-down"
             sym = "+" if pct >= 0 else ""
-            
-            card_html = f"""
+            st.markdown(f"""
             <div class="dark-card">
                 <div class="card-label">{row['名称']}</div>
                 <div class="card-val">{row['最新价']}</div>
                 <div class="{css_cls}">{sym}{pct:.2f}%</div>
             </div>
-            """
-            st.markdown(card_html, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
 st.markdown("<div class='neon-hr'></div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 5. 核心模块：同花顺风格——个股实时检索 & K线图 (新增有用功能)
+# 7. 个股行情看板 + 分时/K线图（盘后固定收盘值）
 # -------------------------------------------------------------
-st.markdown(f"##### 📱 同花顺极速行情看板 - 当前检索: `{selected_code.upper()}`")
-
-@st.cache_data(ttl=2)
+@st.cache_data(ttl=2 if is_trading_time() else 86400)
 def get_single_stock_realtime(code):
     url = f"http://qt.gtimg.cn/q={code}"
     try:
@@ -189,20 +208,18 @@ def get_single_stock_realtime(code):
             "low": float(data[34]),
             "pct_change": float(data[32]),
             "turnover": float(data[37]) if data[37] != '' else 0.0,
-            "pe": float(data[39]) if data[39] != '' else 0.0,
-            "amount": float(data[37]) if data[37] != '' else 0.0
+            "pe": float(data[39]) if data[39] != '' else 0.0
         }
     except Exception:
         return None
 
-stock_info = get_single_stock_realtime(selected_code)
+stock_info = get_single_stock_realtime(target_code)
 
 if stock_info:
-    # 顶部个股数据面板
-    c1, c2, c3, c4, c5 = st.columns(5)
     pct = stock_info['pct_change']
     color = "#ff2a6d" if pct >= 0 else "#05ffa1"
     
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         st.markdown(f"### {stock_info['name']}")
         st.caption(f"代码: {stock_info['code']}")
@@ -217,83 +234,107 @@ if stock_info:
         st.metric("最低", f"￥{stock_info['low']:.2f}")
     with c5:
         st.metric("换手率", f"{stock_info['turnover']}%")
-        st.metric("市盈率(PE)", f"{stock_info['pe']}")
+        st.metric("市盈率", f"{stock_info['pe']}")
 
-    # 获得 K 线历史数据 (绘制专业蜡烛图+均线+成交量)
-    yf_symbol = f"{selected_code[2:]}.SS" if "sh" in selected_code else f"{selected_code[2:]}.SZ"
-    
-    @st.cache_data(ttl=60)
-    def fetch_kline(symbol):
-        try:
-            df = yf.download(symbol, period="6m", interval="1d", progress=False)
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            df['MA5'] = df['Close'].rolling(5).mean()
-            df['MA20'] = df['Close'].rolling(20).mean()
-            return df
-        except Exception:
-            return pd.DataFrame()
+    tab_fenshi, tab_kline = st.tabs(["📈 分时图 (当日全貌)", "📊 日 K 线图"])
 
-    kdf = fetch_kline(yf_symbol)
+    yf_symbol = f"{target_code[2:]}.SS" if "sh" in target_code else f"{target_code[2:]}.SZ"
 
-    if not kdf.empty:
-        # 创建 K线 + 成交量 双图层
-        fig = make_subplots(
-            rows=2, cols=1, 
-            shared_xaxes=True, 
-            vertical_spacing=0.03, 
-            row_heights=[0.7, 0.3],
-            subplot_titles=(f"{stock_info['name']} 日 K 线走势与均线系统", "成交量 (Volume)")
-        )
+    # 分时走势
+    with tab_fenshi:
+        @st.cache_data(ttl=10 if is_trading_time() else 86400)
+        def fetch_intraday_data(symbol):
+            try:
+                df = yf.download(symbol, period="1d", interval="1m", progress=False)
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                return df
+            except Exception:
+                return pd.DataFrame()
 
-        # 蜡烛图
-        fig.add_trace(go.Candlestick(
-            x=kdf.index,
-            open=kdf['Open'], high=kdf['High'],
-            low=kdf['Low'], close=kdf['Close'],
-            name="K线",
-            increasing_line_color='#ff2a6d', decreasing_line_color='#05ffa1'
-        ), row=1, col=1)
+        fdf = fetch_intraday_data(yf_symbol)
 
-        # 移动平均线
-        fig.add_trace(go.Scatter(x=kdf.index, y=kdf['MA5'], line=dict(color='#38bdf8', width=1.5), name="MA5"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=kdf.index, y=kdf['MA20'], line=dict(color='#f59e0b', width=1.5), name="MA20"), row=1, col=1)
+        if not fdf.empty:
+            fig_fs = go.Figure()
+            fig_fs.add_trace(go.Scatter(
+                x=fdf.index, y=fdf['Close'],
+                mode='lines', name='分时价格',
+                line=dict(color='#38bdf8', width=2),
+                fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.08)'
+            ))
+            fig_fs.add_hline(
+                y=stock_info['prev_close'], 
+                line_dash="dash", line_color="#94a3b8", 
+                annotation_text=f"昨收 ￥{stock_info['prev_close']:.2f}", annotation_position="bottom right"
+            )
+            fig_fs.update_layout(
+                paper_bgcolor='#0b0f17', plot_bgcolor='#111827',
+                font=dict(color='#94a3b8', family='JetBrains Mono'),
+                height=400, margin=dict(l=10, r=10, t=20, b=10),
+                xaxis=dict(gridcolor='#1e293b'), yaxis=dict(gridcolor='#1e293b'),
+                showlegend=False
+            )
+            st.plotly_chart(fig_fs, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.info("💡 盘后收盘数据已冻结显示")
 
-        # 成交量柱状图
-        colors = ['#ff2a6d' if c >= o else '#05ffa1' for c, o in zip(kdf['Close'], kdf['Open'])]
-        fig.add_trace(go.Bar(x=kdf.index, y=kdf['Volume'], marker_color=colors, name="成交量"), row=2, col=1)
+    # K 线图
+    with tab_kline:
+        @st.cache_data(ttl=86400)
+        def fetch_kline_data(symbol):
+            try:
+                df = yf.download(symbol, period="6m", interval="1d", progress=False)
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                df['MA5'] = df['Close'].rolling(5).mean()
+                df['MA20'] = df['Close'].rolling(20).mean()
+                return df
+            except Exception:
+                return pd.DataFrame()
 
-        fig.update_layout(
-            paper_bgcolor='#0b0f17',
-            plot_bgcolor='#111827',
-            font=dict(color='#94a3b8', family='JetBrains Mono'),
-            xaxis_rangeslider_visible=False,
-            height=500,
-            margin=dict(l=10, r=10, t=30, b=10)
-        )
-        fig.update_xaxes(gridcolor='#1e293b')
-        fig.update_yaxes(gridcolor='#1e293b')
+        kdf = fetch_kline_data(yf_symbol)
 
-        st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("⚠️ 未查询到该股票实时数据，请确认代码是否正确（例如：600519 / 300750）。")
+        if not kdf.empty:
+            fig_k = make_subplots(
+                rows=2, cols=1, shared_xaxes=True, 
+                vertical_spacing=0.03, row_heights=[0.7, 0.3]
+            )
+            fig_k.add_trace(go.Candlestick(
+                x=kdf.index, open=kdf['Open'], high=kdf['High'],
+                low=kdf['Low'], close=kdf['Close'], name="K线",
+                increasing_line_color='#ff2a6d', decreasing_line_color='#05ffa1'
+            ), row=1, col=1)
+            fig_k.add_trace(go.Scatter(x=kdf.index, y=kdf['MA5'], line=dict(color='#38bdf8', width=1.5), name="MA5"), row=1, col=1)
+            fig_k.add_trace(go.Scatter(x=kdf.index, y=kdf['MA20'], line=dict(color='#f59e0b', width=1.5), name="MA20"), row=1, col=1)
+            
+            v_colors = ['#ff2a6d' if c >= o else '#05ffa1' for c, o in zip(kdf['Close'], kdf['Open'])]
+            fig_k.add_trace(go.Bar(x=kdf.index, y=kdf['Volume'], marker_color=v_colors, name="成交量"), row=2, col=1)
+
+            fig_k.update_layout(
+                paper_bgcolor='#0b0f17', plot_bgcolor='#111827',
+                font=dict(color='#94a3b8', family='JetBrains Mono'),
+                xaxis_rangeslider_visible=False, height=450,
+                margin=dict(l=10, r=10, t=20, b=10), showlegend=False
+            )
+            fig_k.update_xaxes(gridcolor='#1e293b')
+            fig_k.update_yaxes(gridcolor='#1e293b')
+            st.plotly_chart(fig_k, use_container_width=True, config={'displayModeBar': False})
 
 st.markdown("<div class='neon-hr'></div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 6. 替换后的实用分析：Top 15 领涨/热门标的资金面与涨跌幅排行图
+# 8. 热门观察池排行榜 (盘后固定)
 # -------------------------------------------------------------
-st.markdown("##### 📊 今日 A 股主力资金与涨跌幅直观排行 (Top 15)")
+st.markdown("##### 🔥 热门观察池涨跌排行榜")
 
 WATCH_POOL = [
     "sh600519", "sz300750", "sz002594", "sh601318", "sz000858", 
     "sh600036", "sz002475", "sz300014", "sh600900", "sz000651", 
-    "sh600276", "sz000333", "sh601888", "sz300274", "sh601668", 
-    "sh600030", "sz000001", "sh601166", "sz002714", "sh600887"
+    "sh600276", "sz000333", "sh601888", "sz300274", "sh601668"
 ]
 
-@st.cache_data(ttl=3)
-def get_realtime_quant():
+@st.cache_data(ttl=2 if is_trading_time() else 86400)
+def get_rank_data():
     codes = ",".join(WATCH_POOL)
     url = f"http://qt.gtimg.cn/q={codes}"
     try:
@@ -310,7 +351,7 @@ def get_realtime_quant():
                     prev_close = float(data[4])
                     pct_change = float(data[32]) if data[32] != '' else ((price - prev_close)/prev_close*100)
                     volume = float(data[6])
-                    turnover = float(data[37]) if data[37] != '' else 1.5
+                    turnover = float(data[37]) if data[37] != '' else 0.0
                     amount = price * volume / 100
                     stock_list.append({
                         '代码': code, 
@@ -320,45 +361,30 @@ def get_realtime_quant():
                         '换手率': round(turnover, 2), 
                         '成交额(万)': round(amount, 1)
                     })
-        
         df = pd.DataFrame(stock_list)
-        df = df[df['最新价'] > 0]
-        
-        df['资金得分'] = np.clip((df['成交额(万)'] / 50000) * 20 + np.where(df['涨跌幅'] > 0, 20, 5), 0, 100).round(1)
-        res = df.sort_values(by='涨跌幅', ascending=False).head(15).reset_index(drop=True)
-        return res
+        return df.sort_values(by='涨跌幅', ascending=False).reset_index(drop=True)
     except Exception:
         return pd.DataFrame()
 
-rk_df = get_realtime_quant()
+rk_df = get_rank_data()
 
 if not rk_df.empty:
-    # 替换掉原先怪异的散点图，换成清晰实用的“涨跌幅+资金面”柱状图
-    fig_bar = go.Figure()
-    
-    fig_bar.add_trace(go.Bar(
+    fig_bar = go.Figure(go.Bar(
         x=rk_df['名称'],
         y=rk_df['涨跌幅'],
-        name="涨跌幅 (%)",
         marker_color=['#ff2a6d' if p >= 0 else '#05ffa1' for p in rk_df['涨跌幅']],
         text=rk_df['涨跌幅'].apply(lambda x: f"{x:+.2f}%"),
         textposition='auto'
     ))
     
     fig_bar.update_layout(
-        title="热门观察池标的今日涨跌幅对比排行榜",
-        paper_bgcolor='#0b0f17',
-        plot_bgcolor='#111827',
+        paper_bgcolor='#0b0f17', plot_bgcolor='#111827',
         font=dict(color='#94a3b8', family='JetBrains Mono'),
-        height=320,
-        margin=dict(l=20, r=20, t=40, b=20),
-        xaxis=dict(gridcolor='#1e293b'),
-        yaxis=dict(gridcolor='#1e293b')
+        height=280, margin=dict(l=10, r=10, t=10, b=10),
+        xaxis=dict(gridcolor='#1e293b'), yaxis=dict(gridcolor='#1e293b')
     )
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
 
-    # 数据表
-    st.markdown("##### 📋 核心观察池实时明细")
     st.dataframe(
         rk_df.style.format({
             '最新价': '￥{:.2f}', 
@@ -370,12 +396,12 @@ if not rk_df.empty:
     )
 
 # -------------------------------------------------------------
-# 7. 自动刷新执行逻辑
+# 9. 盘中自动刷新控制
 # -------------------------------------------------------------
-if auto_refresh:
+if auto_refresh and is_trading_time():
     import time
     time.sleep(refresh_rate)
     st.rerun()
 
 st.markdown("<div class='neon-hr'></div>", unsafe_allow_html=True)
-st.caption("<div style='text-align: center; color: #475569; font-size: 11px;'>ALPHA QUANT TERMINAL © 2026 | HIGH FREQUENCY DATA ENGINE</div>", unsafe_allow_html=True)
+st.caption("<div style='text-align: center; color: #475569; font-size: 11px;'>ALPHA QUANT TERMINAL © 2026 | A-SHARE REALTIME FEED</div>", unsafe_allow_html=True)
