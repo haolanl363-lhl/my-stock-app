@@ -1,60 +1,121 @@
 import streamlit as st
+import pandas as pd
 import akshare as ak
 import yfinance as yf
-import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 
-# 网页配置
-st.set_page_config(page_title="全球市场与资金面监控看板", layout="wide")
-st.title("📈 股票市场多维监控看板（A股 / 美股夜盘 / 资金面）")
+# 页面基本配置
+st.set_page_config(
+    page_title="股票多维监控看板",
+    page_icon="📈",
+    layout="wide"
+)
 
-# 创建三大标签页
-tab1, tab2, tab3 = st.tabs(["🇨🇳 A股与资金面", "🇺🇸 美股盘前/夜盘", "📰 实时信息面"])
+st.title("📈 股票多维监控看板")
 
-# --- Tab 1: A股与资金面监控 ---
-with tab1:
-    st.header("A股实时大盘与主力资金流向")
-    col1, col2 = st.columns(2)
+# -------------------------------------------------------------
+# 1. 大盘指数概览（双接口保障）
+# -------------------------------------------------------------
+st.subheader("📊 大盘指数概览")
+
+@st.cache_data(ttl=300) # 缓存5分钟，避免频繁请求被封
+def get_index_data():
+    indices = {
+        "上证指数": {"ak_code": "sh000001", "yf_code": "000001.SS"},
+        "深证成指": {"ak_code": "sz399001", "yf_code": "399001.SZ"},
+        "创业板指": {"ak_code": "sz399006", "yf_code": "399006.SZ"},
+        "纳斯达克": {"ak_code": "gb_yx_ixic", "yf_code": "^IXIC"},
+    }
     
-    with col1:
-        st.subheader("大盘指数概览")
-        try:
-            df_index = ak.stock_zh_a_spot_em()
-            target_indices = df_index[df_index['名称'].isin(['上证指数', '深证成指', '创业板指'])]
-            st.dataframe(target_indices[['代码', '名称', '最新价', '涨跌幅', '成交量']], hide_index=True)
-        except Exception as e:
-            st.error(f"获取A股行情失败: {e}")
-
-    with col2:
-        st.subheader("行业板块资金净流入 Top 10")
-        try:
-            df_fund = ak.stock_sector_fund_flow_rank(indicator="今日", sector_type="行业资金流")
-            top_fund = df_fund.head(10)
-            fig = px.bar(top_fund, x='名称', y='今日净额-净额', title="资金净流入排行 (万元)", color='今日净额-净额')
-            st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.error(f"获取资金面数据失败: {e}")
-
-# --- Tab 2: 美股盘前/夜盘监控 ---
-with tab2:
-    st.header("美股核心指数与科技巨头盘前/夜盘跟踪")
-    us_tickers = ["^GSPC", "^IXIC", "AAPL", "NVDA", "TSLA", "MSFT"]
+    results = []
     
+    # 尝试方案 A: 尝试使用 AkShare 抓取
     try:
-        data = yf.download(us_tickers, period="2d", interval="15m", prepost=True)
-        st.write("最新美股/夜盘行情点位：")
-        latest_prices = data['Close'].iloc[-1]
-        st.json(latest_prices.to_dict())
-    except Exception as e:
-        st.error(f"获取美股夜盘数据失败: {e}")
+        df_ak = ak.stock_zh_a_spot_em()
+        for name, codes in indices.items():
+            sub_df = df_ak[df_ak['代码'].str.contains(codes['ak_code'][-6:])]
+            if not sub_df.empty:
+                latest = sub_df.iloc[0]
+                results.append({
+                    "名称": name,
+                    "最新价": latest['最新价'],
+                    "涨跌幅": f"{latest['涨跌幅']}%",
+                    "涨跌额": latest['涨跌额']
+                })
+    except Exception:
+        pass # 如果 AkShare 被拦截，自动无感切到 Yahoo Finance
+        
+    # 方案 B: 备用方案 Yahoo Finance (对海外服务器100%友好)
+    if len(results) < len(indices):
+        results = [] # 重置结果，统一用 yfinance 抓取
+        for name, codes in indices.items():
+            try:
+                ticker = yf.Ticker(codes['yf_code'])
+                hist = ticker.history(period="2d")
+                if len(hist) >= 2:
+                    close_curr = hist['Close'].iloc[-1]
+                    close_prev = hist['Close'].iloc[-2]
+                    change = close_curr - close_prev
+                    pct_change = (change / close_prev) * 100
+                    results.append({
+                        "名称": name,
+                        "最新价": f"{close_curr:.2f}",
+                        "涨跌幅": f"{pct_change:+.2f}%",
+                        "涨跌额": f"{change:+.2f}"
+                    })
+            except Exception:
+                results.append({"名称": name, "最新价": "暂无数据", "涨跌幅": "-", "涨跌额": "-"})
+                
+    return pd.DataFrame(results)
 
-# --- Tab 3: 信息面（快讯） ---
-with tab3:
-    st.header("财联社/电报秒级新闻快讯")
+# 渲染大盘指数卡片
+index_df = get_index_data()
+if not index_df.empty:
+    cols = st.columns(len(index_df))
+    for idx, row in index_df.iterrows():
+        with cols[idx]:
+            st.metric(
+                label=row['名称'],
+                value=row['最新价'],
+                delta=row['涨跌幅']
+            )
+
+st.divider()
+
+# -------------------------------------------------------------
+# 2. 板块资金流向 (加容错处理)
+# -------------------------------------------------------------
+st.subheader("🔥 行业板块资金净流入 Top 10")
+
+@st.cache_data(ttl=600)
+def get_sector_fund_flow():
     try:
-        news_df = ak.stock_telegraph_cls()
-        for idx, row in news_df.head(15).iterrows():
-            st.markdown(f"**[{row['发布时间']}]** {row['内容']}")
-            st.divider()
+        # 使用东财板块资金流接口
+        df = ak.stock_sector_fund_flow_rank(indicator="今日", sector_type="行业板块")
+        df_top10 = df.head(10)[['名称', '今日主力净流入-净额', '今日超大单净流入-净额', '今日涨跌幅']]
+        # 单位转换 (元 -> 亿元)
+        df_top10['今日主力净流入(亿元)'] = (df_top10['今日主力净流入-净额'] / 1e8).round(2)
+        return df_top10[['名称', '今日主力净流入(亿元)', '今日涨跌幅']]
     except Exception as e:
-        st.error(f"获取新闻快讯失败: {e}")
+        return None
+
+sector_df = get_sector_fund_flow()
+
+if sector_df is not None and not sector_df.empty:
+    fig = go.Figure(go.Bar(
+        x=sector_df['今日主力净流入(亿元)'],
+        y=sector_df['名称'],
+        orientation='h',
+        marker=dict(color=sector_df['今日主力净流入(亿元)'], colorscale='Reds')
+    ))
+    fig.update_layout(
+        title="主力资金净流入行业（亿元）",
+        yaxis=dict(autorange="reversed"),
+        height=400,
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("💡 当前非交易时间或受数据源限制，资金流数据暂停更新。请开盘后刷新查看。")
+
+st.caption("提示：如数据未实时刷新，可点击右上角三点菜单选择 'Clear cache' 强制更新。")
