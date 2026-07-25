@@ -1,110 +1,71 @@
-// ============================
-// 投资原则库系统
-// ============================
+// ==============================
+// 投资原则库功能
+// rules.js
+// ==============================
 
+
+// 获取已经保存的数据
 
 let rules = JSON.parse(
-
-localStorage.getItem("investment_rules")
-
+    localStorage.getItem("investment_rules")
 ) || [];
 
 
 
 
-
-
-// 添加原则
-
+// 添加投资原则
 
 function addRule(){
 
+    let title = document.getElementById("title").value;
 
+    let type = document.getElementById("type").value;
 
-let title =
+    let level = document.getElementById("level").value;
 
-document.getElementById("title").value;
-
-
-
-let type =
-
-document.getElementById("type").value;
+    let content = document.getElementById("content").value;
 
 
 
-let level =
+    if(title.trim() === ""){
 
-document.getElementById("level").value;
+        alert("请输入原则名称");
 
+        return;
 
-
-let content =
-
-document.getElementById("content").value;
+    }
 
 
 
+    let newRule = {
 
+        id: Date.now(),
 
-if(!title){
+        title:title,
 
+        type:type,
 
-alert("请输入原则名称");
+        level:level,
 
+        content:content,
 
-return;
+        date:new Date().toLocaleDateString()
 
-
-}
-
-
-
-
-
-let rule = {
-
-
-id:Date.now(),
-
-
-title,
-
-
-type,
-
-
-level,
-
-
-content,
-
-
-date:new Date()
-.toLocaleDateString()
+    };
 
 
 
-};
+    rules.unshift(newRule);
 
 
 
+    saveRules();
 
 
-rules.unshift(rule);
+    renderRules();
 
 
-
-saveRules();
-
-
-
-renderRules();
-
-
-
-clearForm();
-
+    clearInput();
 
 
 }
@@ -115,22 +76,17 @@ clearForm();
 
 
 
-
-
-// 保存
-
+// 保存数据
 
 function saveRules(){
 
+    localStorage.setItem(
 
-localStorage.setItem(
+        "investment_rules",
 
-"investment_rules",
+        JSON.stringify(rules)
 
-JSON.stringify(rules)
-
-);
-
+    );
 
 }
 
@@ -141,130 +97,90 @@ JSON.stringify(rules)
 
 
 
-
-// 清空输入
-
-
-function clearForm(){
-
-
-document
-.querySelectorAll(
-"input,textarea"
-)
-.forEach(
-item=>item.value=""
-);
-
-
-}
-
-
-
-
-
-
-
-
-
-// 显示原则
-
+// 显示原则卡片
 
 function renderRules(){
 
 
-
-let box =
-
-document.getElementById("rules");
+    let box = document.getElementById("rules");
 
 
+    if(!box){
 
-box.innerHTML="";
+        return;
+
+    }
 
 
-
-
-
-rules.forEach(rule=>{
+    box.innerHTML = "";
 
 
 
-box.innerHTML += `
+    rules.forEach(item=>{
+
+
+        box.innerHTML += `
+
+
+        <div class="rule-item">
+
+
+            <h2>${item.title}</h2>
+
+
+            <div class="tag">
+
+            ${item.type}
+
+            </div>
 
 
 
-<div class="rule-item">
+            <h4>
 
+            重要等级：
 
-<h3>
+            ${item.level}
 
-${rule.title}
-
-</h3>
-
-
-
-<span class="category">
-
-${rule.type}
-
-</span>
+            </h4>
 
 
 
-<div class="level">
+            <p>
 
-${rule.level}
+            ${item.content}
 
-</div>
-
-
-
-
-<p class="content">
-
-${rule.content || "暂无说明"}
-
-</p>
+            </p>
 
 
 
-<p>
+            <small>
 
-创建时间：
+            创建时间：
 
-${rule.date}
+            ${item.date}
 
-</p>
-
-
-
-
-<button
-
-class="delete"
-
-onclick="deleteRule(${rule.id})"
-
->
-
-删除原则
-
-</button>
+            </small>
 
 
 
-
-</div>
-
+            <br>
 
 
-`;
+            <button onclick="deleteRule(${item.id})">
+
+            删除
+
+            </button>
 
 
+        </div>
 
-});
+
+        `;
+
+
+    });
 
 
 
@@ -277,28 +193,23 @@ onclick="deleteRule(${rule.id})"
 
 
 
-
-// 删除
+// 删除原则
 
 
 function deleteRule(id){
 
 
+    rules = rules.filter(
 
-rules =
+        item => item.id !== id
 
-rules.filter(
-
-item => item.id !== id
-
-);
+    );
 
 
+    saveRules();
 
-saveRules();
 
-
-renderRules();
+    renderRules();
 
 
 }
@@ -310,13 +221,34 @@ renderRules();
 
 
 
-// 初始化
+// 清空输入框
+
+
+function clearInput(){
+
+
+    document.getElementById("title").value="";
+
+
+    document.getElementById("content").value="";
+
+
+}
+
+
+
+
+
+
+
+
+// 页面打开自动加载
 
 
 window.onload=function(){
 
 
-renderRules();
+    renderRules();
 
 
-}
+};
