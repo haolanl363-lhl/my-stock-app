@@ -4,326 +4,409 @@
 <head>
 
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>投资错题本</title>
+<title>Investment Mistake Book Pro</title>
 
-<style>
 
-*{
-box-sizing:border-box;
-font-family:-apple-system,BlinkMacSystemFont,
-"PingFang SC","Microsoft YaHei";
-}
+<link rel="stylesheet" href="style.css">
 
-body{
-margin:0;
-background:#f5f5f7;
-color:#1d1d1f;
-}
 
-
-.container{
-max-width:900px;
-margin:auto;
-padding:25px;
-}
-
-
-h1{
-font-size:36px;
-}
-
-
-
-.card{
-
-background:white;
-border-radius:25px;
-padding:25px;
-margin-top:20px;
-
-box-shadow:
-0 10px 30px rgba(0,0,0,.08);
-
-}
-
-
-
-.number{
-
-font-size:42px;
-font-weight:700;
-
-}
-
-
-
-.gray{
-
-color:#86868b;
-
-}
-
-
-
-.grid{
-
-display:grid;
-grid-template-columns:
-repeat(3,1fr);
-
-gap:15px;
-
-}
-
-
-
-input,textarea,select{
-
-width:100%;
-padding:15px;
-
-border-radius:15px;
-
-border:1px solid #ddd;
-
-margin-top:10px;
-
-font-size:16px;
-
-}
-
-
-
-textarea{
-
-height:100px;
-
-}
-
-
-
-button{
-
-background:#007aff;
-
-color:white;
-
-border:none;
-
-padding:15px;
-
-border-radius:20px;
-
-width:100%;
-
-font-size:17px;
-
-margin-top:15px;
-
-}
-
-
-
-.item{
-
-padding:20px;
-
-border-radius:20px;
-
-background:#f5f5f7;
-
-margin-top:15px;
-
-}
-
-
-
-.red{
-
-color:#ff3b30;
-
-}
-
-
-
-.green{
-
-color:#34c759;
-
-}
-
-
-
-@media(max-width:600px){
-
-.grid{
-
-grid-template-columns:1fr;
-
-}
-
-}
-
-
-
-</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 
 </head>
 
 
+
 <body>
 
 
-<div class="container">
+<div class="app">
 
+
+<!-- 顶部 -->
+
+<header class="topbar">
+
+
+<div>
 
 <h1>
-📒 投资错题本
+Investment Journal
 </h1>
 
-
-
-<div class="grid">
-
-
-<div class="card">
-
-<div class="gray">
-错误数量
-</div>
-
-<div class="number" id="count">
-0
-</div>
-
+<p>
+投资错题本 Pro
+</p>
 
 </div>
 
 
+<div class="avatar">
 
-<div class="card">
-
-<div class="gray">
-总亏损
-</div>
-
-<div class="number red" id="loss">
-0
-</div>
-
+投资者
 
 </div>
 
 
-
-<div class="card">
-
-<div class="gray">
-复盘次数
-</div>
-
-<div class="number">
-0
-</div>
-
-
-</div>
-
-
-</div>
+</header>
 
 
 
 
 
-<div class="card">
+<!-- 投资评分 -->
 
 
-<h2>
-新增错误
+<section class="hero card">
+
+
+<div>
+
+<p class="small">
+
+投资能力评分
+
+</p>
+
+
+<h2 id="score">
+
+82
+
 </h2>
 
 
-<input id="name"
-placeholder="股票名称">
+<p>
 
-<input id="money"
+根据你的投资错误自动分析
+
+</p>
+
+
+</div>
+
+
+
+<div class="circle">
+
+<div>
+
+82%
+
+</div>
+
+</div>
+
+
+
+</section>
+
+
+
+
+
+
+
+
+<!-- 数据 -->
+
+
+<section class="dashboard-grid">
+
+
+<div class="card">
+
+<p>
+错误次数
+</p>
+
+<h2 id="totalMistake">
+0
+</h2>
+
+
+</div>
+
+
+
+<div class="card">
+
+<p>
+累计亏损
+</p>
+
+<h2 class="danger" id="totalLoss">
+
+¥0
+
+</h2>
+
+
+</div>
+
+
+
+
+<div class="card">
+
+
+<p>
+已解决
+
+</p>
+
+
+<h2 class="success">
+
+0
+
+</h2>
+
+
+
+</div>
+
+
+
+
+<div class="card">
+
+<p>
+复盘完成率
+
+</p>
+
+
+<h2>
+
+76%
+
+</h2>
+
+
+</div>
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<!-- 图表 -->
+
+
+<section class="card chart-box">
+
+
+<h2>
+
+错误趋势分析
+
+</h2>
+
+
+<canvas id="mistakeChart">
+
+</canvas>
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<!-- 新增错误 -->
+
+
+<section class="card">
+
+
+<h2>
+
+记录一次投资错误
+
+</h2>
+
+
+
+<div class="form">
+
+
+<input 
+id="stock"
+placeholder="股票/基金名称">
+
+
+<input 
+id="loss"
 placeholder="亏损金额">
 
 
-<select id="type">
+<select id="category">
+
 
 <option>
 追涨买入
 </option>
 
+
 <option>
 恐慌卖出
 </option>
+
 
 <option>
 仓位过重
 </option>
 
+
 <option>
 没有研究公司
 </option>
+
 
 <option>
 情绪交易
 </option>
 
+
+<option>
+错误估值
+</option>
+
+
 </select>
 
 
 
-<textarea id="reason"
-placeholder="错误原因">
+
+
+<textarea 
+id="reason"
+placeholder="当时为什么买入？">
 
 </textarea>
 
 
 
-<textarea id="change"
-placeholder="以后如何改进">
+
+
+<textarea
+id="mistake"
+placeholder="真正错误在哪里？">
 
 </textarea>
 
 
 
-<button onclick="add()">
 
-保存错误
+
+<textarea
+id="lesson"
+placeholder="以后如何避免？">
+
+</textarea>
+
+
+
+<button onclick="addMistake()">
+
+保存记录
 
 </button>
-
 
 
 </div>
 
 
+</section>
 
 
 
 
-<div class="card">
+
+
+
+
+
+<!-- 搜索 -->
+
+
+<section class="card">
+
 
 <h2>
+
 我的错误记录
+
 </h2>
+
+
+<input 
+id="search"
+placeholder="搜索股票或错误类型"
+oninput="searchMistake()">
 
 
 <div id="list">
 
-</div>
-
 
 </div>
 
 
+</section>
+
+
+
+
+
+
+
+
+
+<!-- 今日复盘 -->
+
+
+<section class="card review">
+
+
+<h2>
+
+今日投资纪律
+
+</h2>
+
+
+
+<div class="check">
+
+<input type="checkbox">
+
+没有追涨
+
+
+</div>
+
+
+
+<div class="check">
+
+<input type="checkbox">
+
+控制仓位
 
 
 </div>
@@ -331,166 +414,43 @@ placeholder="以后如何改进">
 
 
 
+<div class="check">
 
+<input type="checkbox">
 
-<script>
-
-
-let data=
-JSON.parse(localStorage.getItem("mistakes"))
-||[];
-
-
-
-function save(){
-
-localStorage.setItem(
-"mistakes",
-JSON.stringify(data)
-);
-
-}
-
-
-
-function render(){
-
-
-let list=
-document.getElementById("list");
-
-
-list.innerHTML="";
-
-
-let loss=0;
-
-
-data.forEach((x,i)=>{
-
-
-loss+=Number(x.money)||0;
-
-
-list.innerHTML+=`
-
-<div class="item">
-
-<h3>${x.name}</h3>
-
-<p>
-类型：
-${x.type}
-</p>
-
-
-<p>
-亏损：
-<span class="red">
-¥${x.money}
-</span>
-</p>
-
-
-<p>
-原因：
-${x.reason}
-</p>
-
-
-<p>
-改进：
-${x.change}
-</p>
-
-
-<button onclick="del(${i})">
-
-删除
-
-</button>
+查看基本面
 
 
 </div>
 
-`;
-
-});
 
 
-document.getElementById("count")
-.innerHTML=data.length;
+<div class="check">
+
+<input type="checkbox">
+
+记录交易理由
 
 
-document.getElementById("loss")
-.innerHTML="¥"+loss;
-
-
-}
+</div>
 
 
 
-function add(){
-
-
-let obj={
-
-name:
-document.getElementById("name").value,
-
-
-money:
-document.getElementById("money").value,
-
-
-type:
-document.getElementById("type").value,
-
-
-reason:
-document.getElementById("reason").value,
-
-
-change:
-document.getElementById("change").value
-
-};
+</section>
 
 
 
-data.push(obj);
-
-
-save();
-
-
-render();
 
 
 
-}
+</div>
 
 
 
-function del(i){
-
-data.splice(i,1);
-
-save();
-
-render();
-
-}
-
-
-
-render();
-
-
-</script>
-
+<script src="app.js"></script>
 
 
 </body>
+
 
 </html>
