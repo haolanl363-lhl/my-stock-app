@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+<title>
+投资日记 | Investment Journal
+</title>
+
+
+<link rel="stylesheet" href="diary.css">
+
+
+</head>
+
+
+
+<body>
+
+
+<div class="page">
+
+
+
+<header>
+
+
+<a href="index.html" class="back">
+
+← 返回首页
+
+</a>
+
+
+
+<h1>
+
+投资日记
+
+</h1>
+
+
+<p>
+
+记录每一次思考，而不是只记录结果
+
+</p>
+
+
+</header>
+
+
+
+
+
+
+
+<section class="journal-card">
+
+
+
+<div class="date-box">
+
+
+<div>
+
+今天
+
+</div>
+
+
+<h2 id="date">
+
+2026-07-25
+
+</h2>
+
+
+</div>
+
+
+
+
+
+
+<h3>
+
+今日市场状态
+
+</h3>
+
+
+
+<div class="market-select">
+
+
+<button onclick="selectMarket(this)">
+上涨 📈
+</button>
+
+
+<button onclick="selectMarket(this)">
+震荡 ➡️
+</button>
+
+
+<button onclick="selectMarket(this)">
+下跌 📉
+</button>
+
+
+
+</div>
+
+
+
+
+
+
+<h3>
+
+今日投资情绪
+
+</h3>
+
+
+
+<div class="emotion">
+
+
+<button onclick="selectEmotion(this)">
+😀
+</button>
+
+
+<button onclick="selectEmotion(this)">
+🙂
+</button>
+
+
+<button onclick="selectEmotion(this)">
+😐
+</button>
+
+
+<button onclick="selectEmotion(this)">
+😰
+</button>
+
+
+<button onclick="selectEmotion(this)">
+😡
+</button>
+
+
+</div>
+
+
+
+
+
+
+
+<h3>
+
+今天发生了什么？
+
+</h3>
+
+
+<textarea id="event"
+
+placeholder="例如：
+
+今天观察了新能源板块，发现自己以前容易追涨..."
+
+></textarea>
+
+
+
+
+
+
+
+<h3>
+
+我的交易
+
+</h3>
+
+
+<textarea id="trade"
+
+placeholder="买入/卖出什么？
+
+为什么操作？
+
+仓位多少？
+
+">
+
+</textarea>
+
+
+
+
+
+
+
+<h3>
+
+错误复盘
+
+</h3>
+
+
+
+<textarea id="mistake"
+
+placeholder="今天犯了什么错误？
+
+如果重新来一次，我会怎么做？
+
+">
+
+</textarea>
+
+
+
+
+
+
+
+<h3>
+
+今日领悟
+
+</h3>
+
+
+
+<textarea id="lesson"
+
+placeholder="今天学到了什么？">
+
+</textarea>
+
+
+
+
+
+
+
+<h3>
+
+新的投资纪律
+
+</h3>
+
+
+
+<textarea id="rule"
+
+placeholder="例如：
+
+以后买入前必须看估值">
+
+</textarea>
+
+
+
+
+
+
+<button class="save"
+
+onclick="saveDiary()">
+
+保存今日复盘
+
+</button>
+
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<section class="timeline">
+
+
+<h2>
+
+我的投资成长轨迹
+
+</h2>
+
+
+
+<div id="diaryList">
+
+
+</div>
+
+
+
+</section>
+
+
+
+
+
+
+
+</div>
+
+
+
+
+<script src="diary.js"></script>
+
+
+</body>
+
+
+</html>
