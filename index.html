@@ -4,51 +4,34 @@
 <head>
 
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
-
-<title>My Invest</title>
-
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<title>投资错题本</title>
 
 <style>
 
+*{
+box-sizing:border-box;
+font-family:-apple-system,BlinkMacSystemFont,
+"PingFang SC","Microsoft YaHei";
+}
+
 body{
-
 margin:0;
-
 background:#f5f5f7;
-
-font-family:
--apple-system,
-BlinkMacSystemFont,
-"SF Pro Display",
-"PingFang SC";
-
 color:#1d1d1f;
-
 }
 
 
 .container{
-
-padding:25px;
-
 max-width:900px;
-
 margin:auto;
-
+padding:25px;
 }
 
 
-
 h1{
-
 font-size:36px;
-
 }
 
 
@@ -56,15 +39,12 @@ font-size:36px;
 .card{
 
 background:white;
-
 border-radius:25px;
-
 padding:25px;
-
 margin-top:20px;
 
 box-shadow:
-0 8px 30px rgba(0,0,0,.08);
+0 10px 30px rgba(0,0,0,.08);
 
 }
 
@@ -73,7 +53,6 @@ box-shadow:
 .number{
 
 font-size:42px;
-
 font-weight:700;
 
 }
@@ -82,14 +61,7 @@ font-weight:700;
 
 .gray{
 
-color:#888;
-
-}
-
-
-.green{
-
-color:#34c759;
+color:#86868b;
 
 }
 
@@ -98,9 +70,8 @@ color:#34c759;
 .grid{
 
 display:grid;
-
 grid-template-columns:
-repeat(2,1fr);
+repeat(3,1fr);
 
 gap:15px;
 
@@ -108,16 +79,26 @@ gap:15px;
 
 
 
-.stock{
+input,textarea,select{
 
-display:flex;
+width:100%;
+padding:15px;
 
-justify-content:space-between;
+border-radius:15px;
 
-padding:15px 0;
+border:1px solid #ddd;
 
-border-bottom:
-1px solid #eee;
+margin-top:10px;
+
+font-size:16px;
+
+}
+
+
+
+textarea{
+
+height:100px;
 
 }
 
@@ -129,11 +110,59 @@ background:#007aff;
 
 color:white;
 
-border:0;
+border:none;
 
-padding:12px 25px;
+padding:15px;
 
 border-radius:20px;
+
+width:100%;
+
+font-size:17px;
+
+margin-top:15px;
+
+}
+
+
+
+.item{
+
+padding:20px;
+
+border-radius:20px;
+
+background:#f5f5f7;
+
+margin-top:15px;
+
+}
+
+
+
+.red{
+
+color:#ff3b30;
+
+}
+
+
+
+.green{
+
+color:#34c759;
+
+}
+
+
+
+@media(max-width:600px){
+
+.grid{
+
+grid-template-columns:1fr;
+
+}
 
 }
 
@@ -152,27 +181,8 @@ border-radius:20px;
 
 
 <h1>
-My Invest
+📒 投资错题本
 </h1>
-
-
-<div class="card">
-
-<div class="gray">
-总资产
-</div>
-
-<div class="number">
-¥1,258,600
-</div>
-
-
-<p class="green">
-▲ 今日收益 +3280
-</p>
-
-
-</div>
 
 
 
@@ -182,12 +192,13 @@ My Invest
 <div class="card">
 
 <div class="gray">
-年收益率
+错误数量
 </div>
 
-<h2 class="green">
-18.6%
-</h2>
+<div class="number" id="count">
+0
+</div>
+
 
 </div>
 
@@ -196,15 +207,30 @@ My Invest
 <div class="card">
 
 <div class="gray">
-风险等级
+总亏损
 </div>
 
-<h2>
-稳健
-</h2>
+<div class="number red" id="loss">
+0
+</div>
+
 
 </div>
 
+
+
+<div class="card">
+
+<div class="gray">
+复盘次数
+</div>
+
+<div class="number">
+0
+</div>
+
+
+</div>
 
 
 </div>
@@ -215,15 +241,69 @@ My Invest
 
 <div class="card">
 
+
 <h2>
-资产增长
+新增错误
 </h2>
 
 
-<canvas id="chart"></canvas>
+<input id="name"
+placeholder="股票名称">
+
+<input id="money"
+placeholder="亏损金额">
+
+
+<select id="type">
+
+<option>
+追涨买入
+</option>
+
+<option>
+恐慌卖出
+</option>
+
+<option>
+仓位过重
+</option>
+
+<option>
+没有研究公司
+</option>
+
+<option>
+情绪交易
+</option>
+
+</select>
+
+
+
+<textarea id="reason"
+placeholder="错误原因">
+
+</textarea>
+
+
+
+<textarea id="change"
+placeholder="以后如何改进">
+
+</textarea>
+
+
+
+<button onclick="add()">
+
+保存错误
+
+</button>
+
 
 
 </div>
+
 
 
 
@@ -231,51 +311,18 @@ My Invest
 
 <div class="card">
 
-
 <h2>
-我的持仓
+我的错误记录
 </h2>
 
 
-<div class="stock">
-
-<span>
-沪深300ETF
-</span>
-
-<b class="green">
-+12.5%
-</b>
+<div id="list">
 
 </div>
 
 
-
-<div class="stock">
-
-<span>
-纳斯达克100
-</span>
-
-<b class="green">
-+21.3%
-</b>
-
 </div>
 
-
-
-<div class="stock">
-
-<span>
-黄金ETF
-</span>
-
-<b>
--2.1%
-</b>
-
-</div>
 
 
 
@@ -283,70 +330,161 @@ My Invest
 
 
 
-</div>
 
 
 
 <script>
 
 
-new Chart(
-document.getElementById("chart"),
-
-{
-
-type:"line",
-
-data:{
+let data=
+JSON.parse(localStorage.getItem("mistakes"))
+||[];
 
 
-labels:[
-"1月",
-"2月",
-"3月",
-"4月",
-"5月",
-"6月"
-],
 
+function save(){
 
-datasets:[{
-
-data:[
-800000,
-900000,
-1000000,
-1100000,
-1180000,
-1258600
-],
-
-borderWidth:3,
-
-tension:.4
-
-}]
-
-
-},
-
-
-options:{
-
-plugins:{
-
-legend:{
-display:false
-}
-
-}
-
-}
-
-
-}
-
+localStorage.setItem(
+"mistakes",
+JSON.stringify(data)
 );
+
+}
+
+
+
+function render(){
+
+
+let list=
+document.getElementById("list");
+
+
+list.innerHTML="";
+
+
+let loss=0;
+
+
+data.forEach((x,i)=>{
+
+
+loss+=Number(x.money)||0;
+
+
+list.innerHTML+=`
+
+<div class="item">
+
+<h3>${x.name}</h3>
+
+<p>
+类型：
+${x.type}
+</p>
+
+
+<p>
+亏损：
+<span class="red">
+¥${x.money}
+</span>
+</p>
+
+
+<p>
+原因：
+${x.reason}
+</p>
+
+
+<p>
+改进：
+${x.change}
+</p>
+
+
+<button onclick="del(${i})">
+
+删除
+
+</button>
+
+
+</div>
+
+`;
+
+});
+
+
+document.getElementById("count")
+.innerHTML=data.length;
+
+
+document.getElementById("loss")
+.innerHTML="¥"+loss;
+
+
+}
+
+
+
+function add(){
+
+
+let obj={
+
+name:
+document.getElementById("name").value,
+
+
+money:
+document.getElementById("money").value,
+
+
+type:
+document.getElementById("type").value,
+
+
+reason:
+document.getElementById("reason").value,
+
+
+change:
+document.getElementById("change").value
+
+};
+
+
+
+data.push(obj);
+
+
+save();
+
+
+render();
+
+
+
+}
+
+
+
+function del(i){
+
+data.splice(i,1);
+
+save();
+
+render();
+
+}
+
+
+
+render();
 
 
 </script>
